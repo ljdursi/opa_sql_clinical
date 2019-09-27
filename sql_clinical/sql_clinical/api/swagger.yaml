@@ -74,7 +74,7 @@ parameters:
     description: Individual ID
     in: path
     type: string
-    x-example: P001
+    x-example: P0001
     required: true
 
 

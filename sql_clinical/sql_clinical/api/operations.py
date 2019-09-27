@@ -51,7 +51,16 @@ def _report_update_failed(typename, exception, **kwargs):
     return Error(message=message, code=500)
 
 
-def check_auth(url, user, method, url_as_array, token):
+def check_opa_authz(url, user, method, url_as_array, token):
+    """
+    Check if user with token is authorized (by OPA) to access 
+    url (url_as_array) via given http method.
+
+    :param url: full URL as string
+    :param user: username as string
+    :param url_as_array: relative path in array, split by '/'
+    :param token: bearer token (JWT) passed with request
+    """
     input_dict = {"input": {
         "user": user,
         "path": url_as_array,
@@ -64,16 +73,18 @@ def check_auth(url, user, method, url_as_array, token):
     logger().info(json.dumps(input_dict, indent=2))
     try:
         rsp = requests.post(url, data=json.dumps(input_dict))
-    except Exception as err:
-        logger().info(err)
-        return {}
-    j = rsp.json()
+    except Exception as exc:
+        logger().info(exc)
+        err = _report_search_failed("Failed communicating with OPA server", exc)
+        return {}, 500
+    auth_response = rsp.json()
     if rsp.status_code >= 300:
-        err = _report_search_failed("Error checking auth, got status %s and message: %s" % (j.status_code, j.text))
+        err = _report_search_failed("Checking auth got status %s and message: %s" %
+                                    (auth_response.status_code, auth_response.text), None)
         return err, 500
     logger().info("Auth response:")
-    logger().info(json.dumps(j, indent=2))
-    return j
+    logger().info(json.dumps(auth_response, indent=2))
+    return auth_response
 
 
 @apilog
@@ -103,13 +114,13 @@ def get_one_individual(individual_id):
 
     token = {"payload": {"researcher": researcher,
                          "entitlements": entitlements}}
-    j = check_auth(url, user, "GET", path, token)
+    response = check_opa_authz(url, user, "GET", path, token)
     try:
-        result = j.get("result", {})
+        result = response.get("result", {})
     except Exception as ex:
         err = Error(message="Authorization process failed" +
-                     str(individual_id) + " " +
-                     str(ex))
+                    str(individual_id) + " " +
+                    str(ex))
         return err, 500
 
     if result:
