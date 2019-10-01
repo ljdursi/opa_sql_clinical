@@ -6,6 +6,7 @@ Implement endpoints of model service
 import os
 import json
 import requests
+from tornado.options import options
 from sql_clinical import orm
 from sql_clinical.orm import models
 from sql_clinical.api.logging import apilog, logger
@@ -88,7 +89,7 @@ def check_opa_authz(url, user, method, url_as_array, token):
 
 
 @apilog
-def get_individuals(whereConditions):
+def get_individuals(whereConditions=None):
     """
     Return all individuals, possibly selecting by provided conditions
     """
@@ -102,7 +103,7 @@ def get_individuals(whereConditions):
 
 
 @apilog
-def get_one_individual(individual_id):
+def get_one_individual(individual_id, token=None):
     """
     Return single individual object
     """
@@ -112,8 +113,10 @@ def get_one_individual(individual_id):
     researcher = True
     entitlements = ["primary", "secondaryA"]
 
-    token = {"payload": {"researcher": researcher,
-                         "entitlements": entitlements}}
+    if not options.use_tokens:
+        token = {"payload": {"researcher": researcher,
+                            "entitlements": entitlements}}
+
     response = check_opa_authz(url, user, "GET", path, token)
     try:
         result = response.get("result", {})

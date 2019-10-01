@@ -15,6 +15,10 @@ paths:
       summary: Get specific individual
       parameters:
         - $ref: '#/parameters/individual_id'
+        - in: query
+          name: token
+          type: string
+          required: false
       responses:
         "200":
           description: Return individual
