@@ -7,6 +7,7 @@ import os
 import json
 import requests
 from tornado.options import options
+from connexion import request
 from sql_clinical import orm
 from sql_clinical.orm import models
 from sql_clinical.api.logging import apilog, logger
@@ -52,7 +53,27 @@ def _report_update_failed(typename, exception, **kwargs):
     return Error(message=message, code=500)
 
 
-def check_opa_authz(url, user, method, url_as_array, token):
+def _get_token():
+    # Are we using JWTs? If not just fill in with some example data
+    if not options.use_tokens:
+        researcher = True
+        entitlements = ["primary", "secondaryA"]
+        return {"payload": {"researcher": researcher,
+                          "entitlements": entitlements}}
+
+    # no authorization header?
+    if not 'Authorization' in request.headers:
+        return None
+
+    # Bearer not token passed?
+    parts = request.headers['Authorization'].split()
+    if len(parts) <= 1:
+        return None
+
+    return parts[-1]
+
+
+def check_opa_authz(url, user, method, url_as_array):
     """
     Check if user with token is authorized (by OPA) to access 
     url (url_as_array) via given http method.
@@ -60,14 +81,15 @@ def check_opa_authz(url, user, method, url_as_array, token):
     :param url: full URL as string
     :param user: username as string
     :param url_as_array: relative path in array, split by '/'
-    :param token: bearer token (JWT) passed with request
     """
+
     input_dict = {"input": {
         "user": user,
         "path": url_as_array,
         "method": method
     }}
-    if token is not None:
+    token = _get_token()
+    if token:
         input_dict["input"]["token"] = token
 
     logger().info("Checking auth...")
@@ -110,14 +132,8 @@ def get_one_individual(individual_id, token=None):
     url = OPA_URL + POLICY_PATH
     path = ["individuals", individual_id]
     user = "alice"
-    researcher = True
-    entitlements = ["primary", "secondaryA"]
 
-    if not options.use_tokens:
-        token = {"payload": {"researcher": researcher,
-                            "entitlements": entitlements}}
-
-    response = check_opa_authz(url, user, "GET", path, token)
+    response = check_opa_authz(url, user, "GET", path)
     try:
         result = response.get("result", {})
     except Exception as ex:
