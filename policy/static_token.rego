@@ -1,30 +1,25 @@
 package static
 
-consents = {"P001":["primary", "secondaryA"],
-            "P002":["primary", "secondaryA"],
-            "P003":["primary", "secondaryA"],
-            "P004":["primary", "secondaryB"],
-            "P005":["primary", "secondaryB"],
-            "P006":["primary", "secondaryB"]}
+consents = {"P001":["profyle_member"],
+            "P002":["profyle_member"],
+            "P003":["profyle_member"],
+            "P004":["tf4cn_member"],
+            "P005":["tf4cn_member"],
+            "P006":["tf4cn_member"]}
 
 import input
 
-token = {"payload": payload} { io.jwt.decode(input.token, [_, payload, _]) }
+id_token = {"payload": payload} { io.jwt.decode(input.id_token, [_, payload, _]) }
+claims_tokens = [ payload | io.jwt.decode(input.claims_tokens[i], [_, payload, _])]
 
-# input = {
-#   "path": ["individuals", "P001"],
-#   "user": "alice",
-#   "method": "GET"
-#    token.payload.entitlements == ["primary", "secondaryA"]
-#    token.payload.researcher == "True"
-# }
+allowed_claims_set = { j | claims_tokens[i][j] }
 
 default allow = false
 
 # Allow users get data they're authorized for if they are researchers
 allow {
   input.method = "GET"
-  token.payload.researcher = true
+  id_token.payload.researcher = true
   input.path = ["individuals", iid]
-  consents[iid][i] == token.payload.entitlements[j]
+  consents[iid][i] == allowed_claims_set[j]
 }
