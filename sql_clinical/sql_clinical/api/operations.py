@@ -125,7 +125,7 @@ def get_individuals(whereConditions=None):
 
 
 @apilog
-def get_one_individual(individual_id, token=None):
+def get_one_individual(individual_id):
     """
     Return single individual object
     """
