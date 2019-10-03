@@ -29,6 +29,7 @@ services:
       - "--logfile=/clinical_service.log"
       - "--loglevel=INFO"
       - "--tokens"
+      - "--port=3000"
     ports:
       - "3000:3000"
     environment:
