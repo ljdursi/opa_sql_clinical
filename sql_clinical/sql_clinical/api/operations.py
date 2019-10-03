@@ -53,13 +53,13 @@ def _report_update_failed(typename, exception, **kwargs):
     return Error(message=message, code=500)
 
 
-def _get_token():
+def _get_id_token():
     # Are we using JWTs? If not just fill in with some example data
     if not options.use_tokens:
         researcher = True
         entitlements = ["primary", "secondaryA"]
         return {"payload": {"researcher": researcher,
-                          "entitlements": entitlements}}
+                            "entitlements": entitlements}}
 
     # no authorization header?
     if not 'Authorization' in request.headers:
@@ -73,9 +73,20 @@ def _get_token():
     return parts[-1]
 
 
+def _get_claims_tokens():
+    claims = []
+
+    claim_prefix = 'X-Claim-'
+    for header, value in request.headers.items():
+        if header.startswith(claim_prefix):
+            claims.append(value)
+
+    return claims
+
+
 def check_opa_authz(url, user, method, url_as_array):
     """
-    Check if user with token is authorized (by OPA) to access 
+    Check if user with token is authorized (by OPA) to access
     url (url_as_array) via given http method.
 
     :param url: full URL as string
@@ -88,9 +99,14 @@ def check_opa_authz(url, user, method, url_as_array):
         "path": url_as_array,
         "method": method
     }}
-    token = _get_token()
-    if token:
-        input_dict["input"]["token"] = token
+    id_token = _get_id_token()
+    if id_token:
+        input_dict["input"]["id_token"] = id_token
+
+    claims_tokens = _get_claims_tokens()
+    logger().info(json.dumps(claims_tokens, indent=2))
+    if claims_tokens:
+        input_dict["input"]["claims_tokens"] = claims_tokens
 
     logger().info("Checking auth...")
     logger().info(json.dumps(input_dict, indent=2))
