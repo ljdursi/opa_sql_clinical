@@ -6,8 +6,8 @@ import os
 
 import pytest
 
-from sql_clinical.orm import dump, init_db, get_session
-from sql_clinical.orm.models import Individual, Consent
+from orm.__init__ import dump, init_db, get_session
+from orm.models import Individual, Consent
 
 
 def are_equivalent(ormobj1, ormobj2):

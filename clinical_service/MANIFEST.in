@@ -1,5 +1,6 @@
 include LICENSE
 include README.md
+include sql_clinical/api/swagger.yml
 
 recursive-include tests *
 recursive-include sql_clinical *

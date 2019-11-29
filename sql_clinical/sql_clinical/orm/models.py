@@ -3,8 +3,7 @@ SQLAlchemy models for the database
 """
 from sqlalchemy import Column, String, Boolean
 from sqlalchemy import UniqueConstraint, ForeignKey
-from sql_clinical.orm import Base
-
+from .__init__ import Base
 
 class Individual(Base):
     """
@@ -23,7 +22,7 @@ class Consent(Base):
     id = Column(String(100), ForeignKey('individuals.id'), primary_key=True)
     project = Column(String(10), primary_key=True)
     consent = Column(Boolean, primary_key=True)
-    # (id, project) must be unique
+    # (id, project) must be unique: individual can't have two consents for the same project
     __table_args__ = (
         UniqueConstraint("id", "project"),
     )

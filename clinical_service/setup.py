@@ -36,7 +36,7 @@ setup(
     test_suite='tests',
     tests_require=test_requirements,
     data_files=data_files,
-    url='https://github.com/CanDIG/opa_sql_clinical',
+    url='https://github.com/CanDIG/sql_clinical',
     version='0.1.1',
     zip_safe=False,
     entry_points={

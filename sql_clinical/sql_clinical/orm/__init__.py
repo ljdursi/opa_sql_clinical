@@ -54,7 +54,7 @@ def init_db(uri=None):
     Creates the DB engine + ORM
     """
     global _ENGINE
-    import sql_clinical.orm.models # noqa401 #pylint: disable=unused-variable
+    import models # noqa401 #pylint: disable=unused-variable
     if not uri:
         uri = 'sqlite:///' + options.dbfile
     _ENGINE = create_engine(uri, convert_unicode=True)
@@ -80,7 +80,7 @@ def dump(obj, nonulls=False):
     Generate dictionary  of fields without SQLAlchemy internal fields
     & relationships
     """
-    rels = ["calls", "variant", "individual"]
+    rels = ["individual"]
     if not nonulls:
         return {k: v for k, v in vars(obj).items()
                 if not k.startswith('_') and k not in rels}

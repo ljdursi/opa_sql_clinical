@@ -1,3 +1,3 @@
 {
-    "python.pythonPath": "/Users/jonathan dursi/envs/claims_authz/bin/python"
+    "python.linting.pylintArgs": ["--load-plugins", "pylint-flask"]
 }
