@@ -1,15 +1,17 @@
 from __future__ import print_function
 import sys
+import os
 import logging
+
 from flask import Flask, request, jsonify
-from sqlalchemy import create_engine
-from sqlalchemy.sql import text
+from flask.logging import default_handler
+from orm import init_db, get_session, _ENGINE
 import opa
+from sqlalchemy.sql import text
 
+TABLES = None
+SESSION = None
 app = Flask(__name__)
-conn = create_engine('sqlite:///clinical_service.sqlite', echo=True)
-
-TABLES = ['individuals']
 
 def authorization(method, path, table, entitlement):
     result = opa.compile(q='data.filtering.allow==true',
@@ -71,8 +73,8 @@ def query_list(resource):
     else:
         query = text(f"SELECT {select} FROM {table} {join_clause};")
 
-    rows = conn.execute(query).fetchall()
-    columns = conn.execute(query).keys()
+    rows = SESSION.execute(query).fetchall()
+    columns = SESSION.execute(query).keys()
 
     result = [ {key: value for (key, value) in zip(columns, r)} for r in rows ] 
     return jsonify(result=result), 200
@@ -95,7 +97,7 @@ def query_id(resource, id):
     # difference between a 404 (does not exist) and 
     # a 401 (forbidden)
     count_query = text(f"SELECT COUNT(id) FROM {table} where {table}.id=\"{id}\"")
-    rows = conn.execute(count_query).fetchall()
+    rows = SESSION.execute(count_query).fetchall()
     count = rows[0][0]
     app.logger.info(rows[0])
     if count == 0:
@@ -105,8 +107,8 @@ def query_id(resource, id):
         return 'Multiple objects with id, invalid query', 401
 
     query = text(f"SELECT {table}.* FROM {table} {join_clause} WHERE {table}.id=\"{id}\"")
-    rows = conn.execute(query).fetchall()
-    columns = conn.execute(query).keys()
+    rows = SESSION.execute(query).fetchall()
+    columns = SESSION.execute(query).keys()
 
     count = len(rows)
     if count == 0:
@@ -115,9 +117,49 @@ def query_id(resource, id):
     result = {key: value for (key, value) in zip(columns, rows[0])}
     return jsonify(result=result), 200
 
+def main(args=None):
+    """The main routine."""
+    if args is None:
+        args = sys.argv[1:]
 
-if __name__ == '__main__':
-    handler = logging.StreamHandler()
-    handler.setLevel(logging.INFO)
-    app.logger.addHandler(handler)
-    app.run()
+    def_opa_server = os.getenv('OPA_ADDR', 'http://127.0.0.1:8181')
+    parser = argparse.ArgumentParser('Run sql clinical service')
+    parser.add_argument('--database', default="./data/model_service.sqlite")
+    parser.add_argument('--port', default=3000)
+    parser.add_argument('--opa', default=def_opa_server)
+    parser.add_argument('--logfile', default="./log/model_service.log")
+    parser.add_argument('--loglevel', default='INFO',
+                        choices=['DEBUG', 'INFO', 'WARN', 'ERROR', 'CRITICAL'])
+    args = parser.parse_args(args)
+
+    # set up the application
+    app.config['dbfile'] = args.database
+    app.config['opa_server'] = args.opa
+
+    @app.app.teardown_appcontext
+    def shutdown_session(exception=None):  # pylint:disable=unused-variable,unused-argument
+        """
+        Tear down the DB session
+        """
+        SESSION.remove()
+
+    # configure logging
+    log_handler = logging.FileHandler(args.logfile)
+    numeric_loglevel = getattr(logging, args.loglevel.upper())
+    log_handler.setLevel(numeric_loglevel)
+
+    app.logger.removeHandler(default_handler)
+    app.logger.addHandler(log_handler)
+    app.logger.setLevel(numeric_loglevel)
+
+    init_db('sqlite:///'+args.database)
+    global SESSION
+    SESSION = get_session()
+    global TABLES
+    TABLES = set(_ENGINE.table_names()) - {'consents'}
+
+    app.run(port=args.port)
+
+
+if __name__ == "__main__":
+    main()

@@ -72,6 +72,7 @@ import json
 from collections import namedtuple
 from rego import ast, walk
 import sql
+from tornado.options import options
 
 
 class TranslationError(Exception):
@@ -99,13 +100,14 @@ class Result(object):
 
 def compile_http(query, input, unknowns):
     """Returns a set of compiled queries."""
-    response = requests.post(
-        'http://127.0.0.1:8181/v1/compile',
-        data=json.dumps({
-            'query': query,
-            'input': input,
-            'unknowns': unknowns,
-        }))
+    server = options(opa_server)
+    url = server + '/v1/compile'
+    response = requests.post(url,
+                             data=json.dumps({
+                                 'query': query,
+                                 'input': input,
+                                 'unknowns': unknowns,
+                             }))
     body = response.json()
     if response.status_code != 200:
         raise Exception('%s: %s' % (body.code, body.message))

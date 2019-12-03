@@ -4,17 +4,40 @@ ORM module for service
 import os
 import warnings
 from sqlalchemy import event, create_engine, exc
+from sqlalchemy import Column, String, Boolean
+from sqlalchemy import UniqueConstraint, ForeignKey
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
-from tornado.options import options
 
 ORMException = SQLAlchemyError
 
 Base = declarative_base()
-
 _ENGINE = None
 _DB_SESSION = None
+
+
+class Individual(Base):
+    """
+    SQLAlchemy class/table representing an individual
+    """
+    __tablename__ = 'individuals'
+    id = Column(String(100), primary_key=True)
+    status = Column(String(100))
+
+
+class Consent(Base):
+    """
+    SQLAlchemy class/table representing a Variant
+    """
+    __tablename__ = 'consents'
+    id = Column(String(100), ForeignKey('individuals.id'), primary_key=True)
+    project = Column(String(10), primary_key=True)
+    consent = Column(Boolean)
+    # (id, project) must be unique: individual can't have two consents for the same project
+    __table_args__ = (
+        UniqueConstraint("id", "project"),
+    )
 
 
 # From http://docs.sqlalchemy.org/en/latest/faq/connections.html
@@ -49,15 +72,12 @@ def add_engine_pidguard(engine):
             )
 
 
-def init_db(uri=None):
+def init_db(uri):
     """
     Creates the DB engine + ORM
     """
     global _ENGINE
-    import models # noqa401 #pylint: disable=unused-variable
-    if not uri:
-        uri = 'sqlite:///' + options.dbfile
-    _ENGINE = create_engine(uri, convert_unicode=True)
+    _ENGINE = create_engine(uri)
     add_engine_pidguard(_ENGINE)
     Base.metadata.create_all(bind=_ENGINE)
 

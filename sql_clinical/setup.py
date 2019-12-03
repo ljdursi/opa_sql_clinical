@@ -9,8 +9,6 @@ requirements = []
 setup_requirements = ['pytest-runner', ]
 test_requirements = ['pytest', ]
 
-data_files = [('api', ['sql_clinical/api/swagger.yaml'])]
-
 setup(
     author="Jonathan Dursi",
     author_email='jonathan@dursi.ca',
@@ -35,13 +33,12 @@ setup(
     setup_requires=setup_requirements,
     test_suite='tests',
     tests_require=test_requirements,
-    data_files=data_files,
     url='https://github.com/CanDIG/opa_sql_clinical',
     version='0.1.1',
     zip_safe=False,
     entry_points={
         'console_scripts': [
-            'sql_clinical = sql_clinical.__main__:main'
+            'sql_clinical = sql_clinical.service:main'
             ]
         },
 )

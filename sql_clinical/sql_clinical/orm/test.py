@@ -6,8 +6,7 @@ import os
 
 import pytest
 
-from orm.__init__ import dump, init_db, get_session
-from orm.models import Individual, Consent
+from . import dump, init_db, get_session, Individual, Consent
 
 
 def are_equivalent(ormobj1, ormobj2):
@@ -18,7 +17,7 @@ def are_equivalent(ormobj1, ormobj2):
 
 
 @pytest.fixture(scope="module")
-def simple_db(db_filename="ormtest.db"):
+def simple_db(db_filename="./sql_clinical.sqlite"):
     """
     Create a DB with a small number of objects for testing
     """
@@ -31,18 +30,19 @@ def simple_db(db_filename="ormtest.db"):
     init_db('sqlite:///'+db_filename)
     session = get_session(expire_on_commit=False)
 
-    ind_ids = ["P001", "P002", "P003", "P004", "P005", "P006"]
-    statuses = ["Healthy", "Sick", "Healthy", "Sick", "Healthy", "Sick"]
+    ind_ids = ["P001", "P002", "P003", "P004", "P005", "P006", "P007", "P008", "P009"]
+    statuses = ["Healthy", "Sick", "Healthy", "Sick", "Healthy", "Sick", "Healthy", "Sick", "Healthy"]
 
     individuals = [Individual(id=id, status=st)
                    for (id, st) in zip(ind_ids, statuses)]
     session.add_all(individuals)
     session.commit()
 
-    projects = ["Primary", "SecondaryA", "SecondaryB"]
+    projects = ["Primary", "SecondaryA", "SecondaryB", "Tertiary"]
     consents = [Consent(id=id, project=projects[0], consent=True) for id in ind_ids]
     consents = consents + [Consent(id=id, project=projects[1], consent=True) for id in ind_ids[:3]]
-    consents = consents + [Consent(id=id, project=projects[2], consent=True) for id in ind_ids[3:]]
+    consents = consents + [Consent(id=id, project=projects[2], consent=True) for id in ind_ids[3:6]]
+    consents = consents + [Consent(id=id, project=projects[3], consent=True) for id in ind_ids[6:]]
 
     session.add_all(consents)
     session.commit()

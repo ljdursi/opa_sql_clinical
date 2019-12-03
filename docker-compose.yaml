@@ -2,7 +2,7 @@ version: '2'
 
 services:
   opa:
-    image: openpolicyagent/opa:0.13.2
+    image: openpolicyagent/opa:latest
     ports:
       - 8181:8181
     # WARNING: OPA is NOT running with an authorization policy configured. This
@@ -21,12 +21,11 @@ services:
   sql_clinical:
     build: ./sql_clinical
     volumes:
-      - ./testdata/clinical_service.sqlite:/clinical_service.sqlite
-      - ./testdata/clinical_service.log:/sql_clinical.log
+      - ./testdata/sql_clinical.sqlite:/sql_clinical.sqlite
+      - ./testdata/sql_clinical.log:/sql_clinical.log
     command:
-      - "--logfile=clinical_service.log"
-      - "--database=/clinical_service.sqlite"
       - "--logfile=/sql_clinical.log"
+      - "--database=/sql_clinical.sqlite"
       - "--loglevel=INFO"
     ports:
       - "3000:3000"
