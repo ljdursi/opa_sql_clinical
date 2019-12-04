@@ -6,19 +6,20 @@ import argparse
 from flask import Flask, request, jsonify
 from flask.logging import default_handler
 from .orm import init_db, get_session, tables
-from .opa.opa import compile
+from .opa.opa import compile as opa_compile
 from sqlalchemy.sql import text
+from urllib.parse import unquote
 
 TABLES = None
 SESSION = None
 app = Flask(__name__)
 
 def authorization(method, path, table, entitlement):
-    result = compile(q='data.filtering.allow==true',
-                     input={'method': method, 'path': path,
-                            'consent': entitlement},
-                     unknowns=[table, 'consents'],
-                     from_table=table)
+    result = opa_compile(q='data.filtering.allow==true',
+                         input={'method': method, 'path': path,
+                                'entitlements': [entitlement]},
+                         unknowns=[table, 'consents'],
+                         from_table=table)
     return result
 
 def validate_authorization(method, path, table, entitlement):
@@ -26,17 +27,17 @@ def validate_authorization(method, path, table, entitlement):
     if not table in TABLES:
         return False, 'Not found', 404
     
-    app.logger.info("table name = ", table)
+    app.logger.info("table name = %s", table)
     auth = authorization(method, path, table, 'SecondaryB')
     if not auth.defined:
         return False, 'Not authorized', 403
 
-    app.logger.info("auth_defined = ", auth.defined)
+    app.logger.info("auth_defined = %s", str(auth.defined))
     if len(auth.sql.clauses) > 1:
         return False, 'Do not know how to handle multiple clauses yet', 501
 
     join_clause = auth.sql.clauses[0].sql()
-    app.logger.info("join_clasue = ", join_clause)
+    app.logger.info("join_clause = %s", join_clause)
     if not join_clause.startswith("INNER JOIN"):
         return False, 'Do not know how to handle non-join clauses yet', 501
 
@@ -60,19 +61,20 @@ def query_list(resource):
     if 'select' not in args.keys():
         select = table+".*"
     else:
-        select_fields = [table+"."+field for field in args['select'].strip().split(',')]
+        select_fields = [unquote(field) for field in args['select'].strip().split(',')]
         select = ",".join(select_fields)
 
     if 'where' not in args.keys():
         where = None
     else:
-        where = args['where']
+        where = unquote(args['where'])
 
     if where:
         query = text(f"SELECT {select} FROM {table} {join_clause} WHERE {where};")
     else:
         query = text(f"SELECT {select} FROM {table} {join_clause};")
 
+    app.logger.info(str(query))
     rows = SESSION.execute(query).fetchall()
     columns = SESSION.execute(query).keys()
 
@@ -125,6 +127,7 @@ def main(args=None):
     def_opa_server = os.getenv('OPA_ADDR', 'http://127.0.0.1:8181')
     parser = argparse.ArgumentParser('Run sql clinical service')
     parser.add_argument('--database', default="./data/model_service.sqlite")
+    parser.add_argument('--host', default="localhost")
     parser.add_argument('--port', default=3000)
     parser.add_argument('--opa', default=def_opa_server)
     parser.add_argument('--logfile', default="./log/model_service.log")
@@ -156,9 +159,8 @@ def main(args=None):
     SESSION = get_session()
     global TABLES
     TABLES = set(tables()) - {'consents'}
-#    TABLES = {'individuals'}
 
-    app.run(port=args.port)
+    app.run(host=args.host, port=args.port)
 
 
 if __name__ == "__main__":

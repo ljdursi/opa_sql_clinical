@@ -30,10 +30,8 @@ row_allowed[x] {
 }
 
 # Item is also allowed if the data consent matches an entitlement in access list above
-row_allowed[x] {
-  input.method = "GET"
-  input.token.payload.researcher = true
-  input.path = ["individuals", iid]
-  some i
-  data.consents[x].id == entitlements[input.user][i]
-}
+#row_allowed[x] {
+#  input.path = ["individuals", iid]
+#  some i
+#  data.consents[x].id == entitlements[input.user][i]
+#}

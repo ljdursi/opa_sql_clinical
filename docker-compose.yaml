@@ -29,6 +29,7 @@ services:
       - "--database=/files/sql_clinical.sqlite"
       - "--loglevel=INFO"
       - "--port=3000"
+      - "--host=0.0.0.0"
     ports:
       - "3000:3000"
     environment:

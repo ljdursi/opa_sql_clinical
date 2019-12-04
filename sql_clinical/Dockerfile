@@ -4,8 +4,9 @@ LABEL Maintainer "CanDIG Project"
 COPY . /app
 WORKDIR /app
 
-RUN pip install -r requirements.txt \
-    && python setup.py install
+RUN pip install -r requirements.txt
+
+RUN python setup.py install
 
 EXPOSE 3000
 

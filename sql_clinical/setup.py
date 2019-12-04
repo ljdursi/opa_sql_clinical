@@ -5,7 +5,7 @@
 
 from setuptools import setup, find_packages
 
-requirements = ['requests', 'flask', 'sqlalchemy', 'argparse']
+requirements = ['requests', 'flask', 'sqlalchemy']
 setup_requirements = ['pytest-runner']
 test_requirements = ['pytest']
 
