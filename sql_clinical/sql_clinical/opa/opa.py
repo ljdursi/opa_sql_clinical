@@ -69,10 +69,9 @@ import tempfile
 import os
 import subprocess
 import json
-from collections import namedtuple
 from rego import ast, walk
-import sql
-from tornado.options import options
+from ..service import app
+import sql as opa_sql
 
 
 class TranslationError(Exception):
@@ -100,7 +99,7 @@ class Result(object):
 
 def compile_http(query, input, unknowns):
     """Returns a set of compiled queries."""
-    server = options(opa_server)
+    server = app.config['opa_server']
     url = server + '/v1/compile'
     response = requests.post(url,
                              data=json.dumps({
@@ -215,11 +214,11 @@ class queryTranslator(object):
         walk.walk(query_set, self)
         clauses = []
         if len(self._conjunctions) > 0:
-            clauses = [sql.Where(sql.Disjunction([conj for conj in self._conjunctions]))]
+            clauses = [opa_sql.Where(opa_sql.Disjunction([conj for conj in self._conjunctions]))]
         for (tables, conj) in self._joins:
-            pred = sql.InnerJoin(tables, conj)
+            pred = opa_sql.InnerJoin(tables, conj)
             clauses.append(pred)
-        return sql.Union(clauses)
+        return opa_sql.Union(clauses)
 
     def __call__(self, node):
         if isinstance(node, ast.Query):
@@ -236,7 +235,7 @@ class queryTranslator(object):
         tables are referred to."""
         for expr in node.exprs:
             walk.walk(expr, self)
-        conj = sql.Conjunction(self._relations)
+        conj = opa_sql.Conjunction(self._relations)
         if len(self._tables) > 1:
             self._tables.remove(self._from_table)
             self._joins.append((self._tables, conj))
@@ -253,24 +252,24 @@ class queryTranslator(object):
             raise TranslationError('invalid expression: too many arguments')
         try:
             op = node.op()
-            sql_op = sql.RelationOp(self._sql_relation_operators[op])
+            sql_op = opa_sql.RelationOp(self._sql_relation_operators[op])
         except KeyError:
             raise TranslationError('invalid expression: operator not supported: %s' % op)
         self._operands.append([])
         for term in node.operands:
             walk.walk(term, self)
         sql_operands = self._operands.pop()
-        self._relations.append(sql.Relation(sql_op, *sql_operands))
+        self._relations.append(opa_sql.Relation(sql_op, *sql_operands))
 
     def _translate_term(self, node):
         """Pushes an element onto the operand stack."""
         v = node.value
         if isinstance(v, ast.Scalar):
-            self._operands[-1].append(sql.Constant(v.value))
+            self._operands[-1].append(opa_sql.Constant(v.value))
         elif isinstance(v, ast.Ref) and len(v.terms) == 3:
             table = v.terms[1].value.value
             self._tables.add(table)
-            col = sql.Column(v.terms[2].value.value, table)
+            col = opa_sql.Column(v.terms[2].value.value, table)
             self._operands[-1].append(col)
         elif isinstance(v, ast.Call):
             try:
@@ -282,7 +281,7 @@ class queryTranslator(object):
             for term in v.operands:
                 walk.walk(term, self)
             sql_operands = self._operands.pop()
-            self._operands[-1].append(sql.Call(sql_op, sql_operands))
+            self._operands[-1].append(opa_sql.Call(sql_op, sql_operands))
         else:
             raise TranslationError('invalid term: type not supported: %s' % v.__class__.__name__)
 

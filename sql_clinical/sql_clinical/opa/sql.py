@@ -91,12 +91,12 @@ class RelationOp(object):
 
 
 def walk(node, vis):
-    next = vis(node)
-    if next is None:
+    w_next = vis(node)
+    if w_next is None:
         return
     if isinstance(node, Union):
         for c in node.clauses:
-            walk(c, next)
+            walk(c, w_next)
     elif isinstance(node, Where):
         walk(node.expr, next)
     elif isinstance(node, InnerJoin):

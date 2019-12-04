@@ -1,4 +1,3 @@
-from __future__ import print_function
 import sys
 import os
 import logging
@@ -6,7 +5,7 @@ import logging
 from flask import Flask, request, jsonify
 from flask.logging import default_handler
 from orm import init_db, get_session, _ENGINE
-import opa
+from opa import opa
 from sqlalchemy.sql import text
 
 TABLES = None
@@ -148,7 +147,6 @@ def main(args=None):
     numeric_loglevel = getattr(logging, args.loglevel.upper())
     log_handler.setLevel(numeric_loglevel)
 
-    app.logger.removeHandler(default_handler)
     app.logger.addHandler(log_handler)
     app.logger.setLevel(numeric_loglevel)
 
