@@ -1,11 +1,12 @@
 import sys
 import os
 import logging
+import argparse
 
 from flask import Flask, request, jsonify
 from flask.logging import default_handler
-from orm import init_db, get_session, _ENGINE
-from opa import opa
+from .orm import init_db, get_session, tables
+from .opa.opa import compile
 from sqlalchemy.sql import text
 
 TABLES = None
@@ -13,11 +14,11 @@ SESSION = None
 app = Flask(__name__)
 
 def authorization(method, path, table, entitlement):
-    result = opa.compile(q='data.filtering.allow==true',
-                         input={'method': method, 'path': path,
-                                'consent': entitlement},
-                         unknowns=[table, 'consents'],
-                         from_table=table)
+    result = compile(q='data.filtering.allow==true',
+                     input={'method': method, 'path': path,
+                            'consent': entitlement},
+                     unknowns=[table, 'consents'],
+                     from_table=table)
     return result
 
 def validate_authorization(method, path, table, entitlement):
@@ -135,7 +136,7 @@ def main(args=None):
     app.config['dbfile'] = args.database
     app.config['opa_server'] = args.opa
 
-    @app.app.teardown_appcontext
+    @app.teardown_appcontext
     def shutdown_session(exception=None):  # pylint:disable=unused-variable,unused-argument
         """
         Tear down the DB session
@@ -154,7 +155,8 @@ def main(args=None):
     global SESSION
     SESSION = get_session()
     global TABLES
-    TABLES = set(_ENGINE.table_names()) - {'consents'}
+    TABLES = set(tables()) - {'consents'}
+#    TABLES = {'individuals'}
 
     app.run(port=args.port)
 

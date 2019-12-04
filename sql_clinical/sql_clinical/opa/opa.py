@@ -70,8 +70,8 @@ import os
 import subprocess
 import json
 from rego import ast, walk
-from ..service import app
-import sql as opa_sql
+from flask import current_app as app
+from . import sql as opa_sql
 
 
 class TranslationError(Exception):

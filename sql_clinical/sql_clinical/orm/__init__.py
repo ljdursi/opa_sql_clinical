@@ -94,6 +94,11 @@ def get_session(**kwargs):
         Base.query = _DB_SESSION.query_property()
     return _DB_SESSION
 
+def tables():
+    global _ENGINE
+    if _ENGINE:
+        return _ENGINE.table_names()
+
 
 def dump(obj, nonulls=False):
     """

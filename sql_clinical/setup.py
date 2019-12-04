@@ -5,9 +5,9 @@
 
 from setuptools import setup, find_packages
 
-requirements = []
-setup_requirements = ['pytest-runner', ]
-test_requirements = ['pytest', ]
+requirements = ['requests', 'flask', 'sqlalchemy', 'argparse']
+setup_requirements = ['pytest-runner']
+test_requirements = ['pytest']
 
 setup(
     author="Jonathan Dursi",
@@ -27,7 +27,6 @@ setup(
     install_requires=requirements,
     license="GNU General Public License v3",
     include_package_data=True,
-    keywords='sql_clinical',
     name='sql_clinical',
     packages=find_packages(include=['sql_clinical']),
     setup_requires=setup_requirements,

@@ -21,12 +21,14 @@ services:
   sql_clinical:
     build: ./sql_clinical
     volumes:
-      - ./testdata/sql_clinical.sqlite:/sql_clinical.sqlite
-      - ./testdata/sql_clinical.log:/sql_clinical.log
+      - ${PWD}/testdata/:/files/
+      - ${PWD}/testdata/sql_clinical.sqlite:/files/sql_clinical.sqlite
+      - ${PWD}/testdata/sql_clinical.log:/files/sql_clinical.log
     command:
-      - "--logfile=/sql_clinical.log"
-      - "--database=/sql_clinical.sqlite"
+      - "--logfile=/files/sql_clinical.log"
+      - "--database=/files/sql_clinical.sqlite"
       - "--loglevel=INFO"
+      - "--port=3000"
     ports:
       - "3000:3000"
     environment:
