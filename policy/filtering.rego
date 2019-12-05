@@ -1,8 +1,8 @@
 package filtering
 
 ## access list for proejcts that don't have a DAC
-entitlements = {"alice":["tertiary"],
-                "bob":  ["primary"]}
+access_list = {"alice":["tf4cn_member"],
+               "bob":  ["tf4cn_member"]}
 
 # authorize a single item
 allow = true {
@@ -30,8 +30,9 @@ row_allowed[x] {
 }
 
 # Item is also allowed if the data consent matches an entitlement in access list above
-#row_allowed[x] {
-#  input.path = ["individuals", iid]
-#  some i
-#  data.consents[x].id == entitlements[input.user][i]
-#}
+row_allowed[x] {
+  some j
+  data.individuals[x].id = data.consents[x].id 
+  data.consents[x].consent = true
+  data.consents[x].project = access_list[input.user][j]
+}

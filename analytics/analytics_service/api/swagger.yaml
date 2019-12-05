@@ -1,0 +1,92 @@
+swagger: '2.0'
+info:
+  title: Clinical query demo - SQL wrapper
+  version: '1'
+basePath: /analytics/v1
+consumes:
+  - application/json
+produces:
+  - application/json
+paths:
+  /n:
+    get:
+      operationId: analytics_service.api.operations.get_number
+      summary: Get count of available individuals for analysis
+      responses:
+        '200':
+          description: Return count
+          schema:
+            $ref: '#/definitions/Count'
+        '401':
+          description: Unauthenticated
+          schema:
+            $ref: '#/definitions/Error'
+        '403':
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/Error'
+        '500':
+          description: Internal error
+          schema:
+            $ref: '#/definitions/Error'
+  /healthy_fraction:
+    get:
+      operationId: analytics_service.api.operations.get_healthy_fraction
+      summary: Get fraction of available healthy individuals
+      responses:
+        '200':
+          description: Return fraction
+          schema:
+            $ref: '#/definitions/Fraction'
+        '401':
+          description: Unauthenticated
+          schema:
+            $ref: '#/definitions/Error'
+        '403':
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/Error'
+        '500':
+          description: Internal error
+          schema:
+            $ref: '#/definitions/Error'
+definitions:
+  Fraction:
+    type: object
+    properties:
+      fraction_name:
+        type: string
+        description: What fraction represents
+        example: healthy_fraction
+        readOnly: true
+        minLength: 1
+        maxLength: 100
+      fraction:
+        type: number
+        description: Fraction
+        example: 0.5
+  Count:
+    type: object
+    properties:
+      count_name:
+        type: string
+        description: What count represents
+        example: available_individuals
+        readOnly: true
+        minLength: 1
+        maxLength: 100
+      count:
+        type: integer
+        description: Count
+        example: 4
+  Error:
+    type: object
+    required:
+      - message
+      - code
+    properties:
+      code:
+        type: integer
+        format: int32
+      message:
+        type: string

@@ -19,7 +19,7 @@ services:
       - "/policy.rego"
 
   sql_clinical:
-    build: ./sql_clinical
+    build: ./sql
     volumes:
       - ${PWD}/testdata/:/files/
       - ${PWD}/testdata/sql_clinical.sqlite:/files/sql_clinical.sqlite
@@ -38,14 +38,36 @@ services:
     links:
       - opa
 
-#  clinical_service:
-#    build: ./clinical_service
-#    volumes:
-#      - ./testdata/clinical_service.log:/clinical_service.log
-#    command:
-#      - "--logfile=/clinical_service.log"
-#      - "--loglevel=INFO"
-#    ports:
-#      - "4000:4000"
-#    links:
-#      - sql_clinical
+  clinical_service:
+    build: ./clinical
+    volumes:
+      - ${PWD}/testdata/:/files/
+      - ${PWD}/testdata/clinical_service.log:/files/clinical_service.log
+    command:
+      - "--logfile=/files/clinical_service.log"
+      - "--loglevel=INFO"
+      - "--host=0.0.0.0"
+      - "--port=4000"
+      - "--sql_host=sql_clinical"
+      - "--sql_port=3000"
+    ports:
+      - "4000:4000"
+    links:
+      - sql_clinical
+
+  analytics_service:
+    build: ./analytics
+    volumes:
+      - ${PWD}/testdata/:/files/
+      - ${PWD}/testdata/analytics_service.log:/files/analytics_service.log
+    command:
+      - "--logfile=/files/analytics_service.log"
+      - "--loglevel=INFO"
+      - "--host=0.0.0.0"
+      - "--port=5000"
+      - "--sql_host=sql_clinical"
+      - "--sql_port=3000"
+    ports:
+      - "5000:5000"
+    links:
+      - sql_clinical
