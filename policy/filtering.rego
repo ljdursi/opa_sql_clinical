@@ -4,6 +4,16 @@ package filtering
 access_list = {"alice":["tf4cn_member"],
                "bob":  ["tf4cn_member"]}
 
+# authorization is denied if the identity token is expired
+# or if signature fails validation
+allow = false {
+  [valid, header, payload] := io.jwt.decode_verify(input.user, {"secret": "secret"})
+  valid == false
+}
+
+idtoken := {"payload": payload} { io.jwt.decode(input.user, [_, payload, _]) }
+subject := idtoken.payload.sub
+
 # authorize a single item
 allow = true {
   input.method = "GET"
@@ -34,5 +44,5 @@ row_allowed[x] {
   some j
   data.individuals[x].id = data.consents[x].id 
   data.consents[x].consent = true
-  data.consents[x].project = access_list[input.user][j]
+  data.consents[x].project = access_list[subject][j]
 }
