@@ -32,7 +32,8 @@ def _get_claims_tokens():
     claim_prefix = 'X-Claim-'
     for header, value in request.headers.items():
         if header.startswith(claim_prefix):
-            claims.append(value)
+            claim = header[len(claim_prefix):].lower().replace('-','_')
+            claims.append({"name": claim, "jwt": value})
 
     return claims
 

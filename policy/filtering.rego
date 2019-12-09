@@ -13,6 +13,13 @@ allow = false {
   valid == false
 }
 
+# if any of the claims tokens are expired or fail signature validation
+# then we also fail
+allow = false {
+  [valid, header, payload] := io.jwt.decode_verify(input.entitlements[_].jwt, {"secret": "secret"})
+  valid == false
+}
+
 # get the user (subject) from the identity token
 # we'd actually use issuer:subject as the key rather than just subject
 idtoken := {"payload": payload} { io.jwt.decode(input.user, [_, payload, _]) }
@@ -37,10 +44,13 @@ allow = true {
 
 # Item is allowed if the input entitlement (e.g. from a DAC) matches the data consent...
 row_allowed[x] {
-  some i
   data.individuals[x].id = data.consents[x].id 
   data.consents[x].consent = true
-  data.consents[x].project = input.entitlements[i]
+  proj := data.consents[x].project
+  some i
+  input.entitlements[i].name == proj
+  [_, payload, _] := io.jwt.decode(input.entitlements[i].jwt)
+  payload[proj] == true
 }
 
 # Alternateily, item is allowed if the data consent matches an entitlement in access list above
