@@ -6,11 +6,15 @@ access_list = {"alice":["tf4cn_member"],
 
 # authorization is denied if the identity token is expired
 # or if signature fails validation
+# this is also where we'd check that the issuer is one of
+# our trusted federation partners, etc.
 allow = false {
   [valid, header, payload] := io.jwt.decode_verify(input.user, {"secret": "secret"})
   valid == false
 }
 
+# get the user (subject) from the identity token
+# we'd actually use issuer:subject as the key rather than just subject
 idtoken := {"payload": payload} { io.jwt.decode(input.user, [_, payload, _]) }
 subject := idtoken.payload.sub
 
@@ -31,7 +35,7 @@ allow = true {
   row_allowed[x]
 }
 
-# Item is allowed if the input consent (e.g. from a DAC) matches the data consent...
+# Item is allowed if the input entitlement (e.g. from a DAC) matches the data consent...
 row_allowed[x] {
   some i
   data.individuals[x].id = data.consents[x].id 
@@ -39,7 +43,7 @@ row_allowed[x] {
   data.consents[x].project = input.entitlements[i]
 }
 
-# Item is also allowed if the data consent matches an entitlement in access list above
+# Alternateily, item is allowed if the data consent matches an entitlement in access list above
 row_allowed[x] {
   some j
   data.individuals[x].id = data.consents[x].id 
