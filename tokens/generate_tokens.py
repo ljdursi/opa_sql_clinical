@@ -27,6 +27,7 @@ def write_demo_tokens():
     alice_identity = create_token('alice')
     bob_identity = create_token('bob')
     alice_profyle = create_token('alice', {'profyle_member': True})
+    bob_profyle = create_token('bob', {'profyle_member': False})
 
     with open('alice_id.jwt', 'w') as aliceid:
         aliceid.write(alice_identity.decode('utf-8'))
@@ -34,6 +35,8 @@ def write_demo_tokens():
         bobid.write(bob_identity.decode('utf-8'))
     with open('alice_claim.jwt', 'w') as aliceclaim:
         aliceclaim.write(alice_profyle.decode('utf-8'))
+    with open('bob_claim.jwt', 'w') as bobclaim:
+        bobclaim.write(bob_profyle.decode('utf-8'))
 
 if __name__ == "__main__":
     write_demo_tokens()
