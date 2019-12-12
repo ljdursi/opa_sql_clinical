@@ -26,7 +26,7 @@ def get_healthy_fraction():
     """
     headers = request.headers
     url = f"http://{options.sql_server}/lists/individuals"
-    total_url = f"{url}?select=count(individuals.id)"
+    total_url = f"{url}?select=count(id)"
     healthy_url = f"""{total_url}&where={quote('individuals.status="Healthy"')}"""
     try:
         r_total = requests.get(total_url, headers=headers)
@@ -53,7 +53,7 @@ def get_number():
     """
     headers = request.headers
     url = f"http://{options.sql_server}/lists/individuals"
-    total_url = f"{url}?select=count(individuals.id)"
+    total_url = f"{url}?select=count(id)"
     logger().info(f"Making query: {total_url}")
     try:
         r_total = requests.get(total_url, headers=headers)

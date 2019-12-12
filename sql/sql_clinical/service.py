@@ -73,6 +73,22 @@ def validate_authorization(method, path, table):
     app.logger.info("About to return true")
     return True, auth, join_clauses
 
+
+def construct_list_query(SELECT, FROM, join_clauses, WHERE=None):
+    base_query = text(f"SELECT {FROM}.* FROM {FROM}")
+
+    subqueries = [text(f"{base_query} {joinclause}") for joinclause in join_clauses]
+    if WHERE:
+        subqueries = [text(f"{subquery} WHERE {WHERE}") for subquery in subqueries]
+
+    query = text(f"SELECT {SELECT} FROM ({subqueries[0]}")
+    for subquery in subqueries[1:]:
+        query = text(f"{query} UNION {subquery}")
+
+    query = text(f"{query});")
+    return query
+
+
 @app.route('/lists/<resource>')
 def query_list(resource):
     path = request.path.split('/')[2:]
@@ -87,7 +103,7 @@ def query_list(resource):
 
     args = request.args
     if 'select' not in args.keys():
-        select = table+".*"
+        select = "*"
     else:
         select_fields = [unquote(field) for field in args['select'].strip().split(',')]
         select = ",".join(select_fields)
@@ -97,18 +113,10 @@ def query_list(resource):
     else:
         where = unquote(args['where'])
 
-    result = []
-    for join_clause in join_clauses:
-        if where:
-            query = text(f"SELECT {select} FROM {table} {join_clause} WHERE {where};")
-        else:
-            query = text(f"SELECT {select} FROM {table} {join_clause};")
-
-        app.logger.info(str(query))
-        rows = SESSION.execute(query).fetchall()
-        columns = SESSION.execute(query).keys()
-        result += [ {key: value for (key, value) in zip(columns, r)} for r in rows ] 
-
+    list_query = construct_list_query(select, table, join_clauses, WHERE=where)
+    rows = SESSION.execute(list_query).fetchall()
+    columns = SESSION.execute(list_query).keys()
+    result = [ {key: value for (key, value) in zip(columns, r)} for r in rows ] 
 
     result = _unique_dictionaries(result)
     return jsonify(result=result), 200
