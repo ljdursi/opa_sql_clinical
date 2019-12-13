@@ -25,7 +25,6 @@ def _get_id_token():
 
     return parts[-1]
 
-
 def _get_claims_tokens():
     claims = []
 
@@ -42,7 +41,6 @@ def _unique_dictionaries(list_of_dicts):
     frozensets_set = set(frozensets)
     return [dict(fs) for fs in frozensets]
 
-
 def authorization(method, path, table):
     user = _get_id_token()
     entitlements = _get_claims_tokens()
@@ -54,24 +52,34 @@ def authorization(method, path, table):
     return result
 
 def validate_authorization(method, path, table):
-    app.logger.info("In validate")
     if not table in TABLES:
-        return False, 'Not found', 404
+        return False, 'Not found', 404, None
     
-    app.logger.info("table name = %s", table)
     auth = authorization(method, path, table)
     if not auth.defined:
-        return False, 'Not authorized', 403
-
-    app.logger.info("auth_defined = %s", str(auth.defined))
+        return False, 'Not authorized', 403, None
 
     join_clauses = [clause.sql() for clause in auth.sql.clauses]
-    app.logger.info(f"join_clauses = {join_clauses}")
     if not all([clause.startswith("INNER JOIN") for clause in join_clauses]):
-        return False, 'Do not know how to handle non-join clauses yet', 501
+        return False, 'Do not know how to handle non-join clauses yet', 501, None
 
-    app.logger.info("About to return true")
-    return True, auth, join_clauses
+    return True, auth, 200, join_clauses
+
+
+def construct_list_query(SELECT, FROM, join_clauses, WHERE=None):
+    base_query = text(f"SELECT {FROM}.* FROM {FROM}")
+
+    subqueries = [text(f"{base_query} {joinclause}") for joinclause in join_clauses]
+    if WHERE:
+        subqueries = [text(f"{subquery} WHERE {WHERE}") for subquery in subqueries]
+
+    query = text(f"SELECT {SELECT} FROM ({subqueries[0]}")
+    for subquery in subqueries[1:]:
+        query = text(f"{query} UNION {subquery}")
+
+    query = text(f"{query});")
+    return query
+
 
 @app.route('/lists/<resource>')
 def query_list(resource):
@@ -79,15 +87,13 @@ def query_list(resource):
     method = request.method
     table = resource.strip()
 
-    success, msg, result = validate_authorization(method, path, table)
+    success, msg, code, join_clauses = validate_authorization(method, path, table)
     if not success:
-        return msg, result
-
-    join_clauses = result
+        return msg, code
 
     args = request.args
     if 'select' not in args.keys():
-        select = table+".*"
+        select = "*"
     else:
         select_fields = [unquote(field) for field in args['select'].strip().split(',')]
         select = ",".join(select_fields)
@@ -97,18 +103,10 @@ def query_list(resource):
     else:
         where = unquote(args['where'])
 
-    result = []
-    for join_clause in join_clauses:
-        if where:
-            query = text(f"SELECT {select} FROM {table} {join_clause} WHERE {where};")
-        else:
-            query = text(f"SELECT {select} FROM {table} {join_clause};")
-
-        app.logger.info(str(query))
-        rows = SESSION.execute(query).fetchall()
-        columns = SESSION.execute(query).keys()
-        result += [ {key: value for (key, value) in zip(columns, r)} for r in rows ] 
-
+    list_query = construct_list_query(select, table, join_clauses, WHERE=where)
+    rows = SESSION.execute(list_query).fetchall()
+    columns = SESSION.execute(list_query).keys()
+    result = [ {key: value for (key, value) in zip(columns, r)} for r in rows ] 
 
     result = _unique_dictionaries(result)
     return jsonify(result=result), 200
@@ -120,7 +118,7 @@ def query_id(resource, id):
     method = request.method
     table = resource.strip()
 
-    success, msg, result = validate_authorization(method, path, table)
+    success, msg, result, join_clause = validate_authorization(method, path, table)
     if not success:
         return msg, result
 

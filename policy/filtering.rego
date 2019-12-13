@@ -1,6 +1,6 @@
 package filtering
 
-## access list for proejcts that don't have a DAC
+## access list for projects that don't have a DAC
 access_list = {"alice":["tf4cn_member"],
                "bob":  ["tf4cn_member"]}
 
@@ -13,17 +13,18 @@ allow = false {
   valid == false
 }
 
-# if any of the claims tokens are expired or fail signature validation
-# then we also fail
-allow = false {
-  [valid, header, payload] := io.jwt.decode_verify(input.entitlements[_].jwt, {"secret": "secret"})
-  valid == false
-}
-
 # get the user (subject) from the identity token
 # we'd actually use issuer:subject as the key rather than just subject
 idtoken := {"payload": payload} { io.jwt.decode(input.user, [_, payload, _]) }
 subject := idtoken.payload.sub
+
+# if any of the claims tokens are expired or fail signature validation
+# or the subject isn't the same as the ID subject
+# then we also fail
+allow = false {
+  [valid, header, payload] := io.jwt.decode_verify(input.entitlements[_].jwt, {"secret": "secret"})
+  any({valid == false, payload.sub != subject})
+}
 
 # authorize a single item
 allow = true {
@@ -46,8 +47,8 @@ allow = true {
 row_allowed[x] {
   data.individuals[x].id = data.consents[x].id 
   data.consents[x].consent = true
-  proj := data.consents[x].project
   some i
+  proj := data.consents[x].project
   input.entitlements[i].name == proj
   [_, payload, _] := io.jwt.decode(input.entitlements[i].jwt)
   payload[proj] == true
@@ -55,8 +56,8 @@ row_allowed[x] {
 
 # Alternateily, item is allowed if the data consent matches an entitlement in access list above
 row_allowed[x] {
-  some j
   data.individuals[x].id = data.consents[x].id 
   data.consents[x].consent = true
+  some j
   data.consents[x].project = access_list[subject][j]
 }
