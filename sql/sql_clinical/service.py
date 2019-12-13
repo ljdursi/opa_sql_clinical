@@ -25,7 +25,6 @@ def _get_id_token():
 
     return parts[-1]
 
-
 def _get_claims_tokens():
     claims = []
 
@@ -42,7 +41,6 @@ def _unique_dictionaries(list_of_dicts):
     frozensets_set = set(frozensets)
     return [dict(fs) for fs in frozensets]
 
-
 def authorization(method, path, table):
     user = _get_id_token()
     entitlements = _get_claims_tokens()
@@ -54,24 +52,18 @@ def authorization(method, path, table):
     return result
 
 def validate_authorization(method, path, table):
-    app.logger.info("In validate")
     if not table in TABLES:
-        return False, 'Not found', 404
+        return False, 'Not found', 404, None
     
-    app.logger.info("table name = %s", table)
     auth = authorization(method, path, table)
     if not auth.defined:
-        return False, 'Not authorized', 403
-
-    app.logger.info("auth_defined = %s", str(auth.defined))
+        return False, 'Not authorized', 403, None
 
     join_clauses = [clause.sql() for clause in auth.sql.clauses]
-    app.logger.info(f"join_clauses = {join_clauses}")
     if not all([clause.startswith("INNER JOIN") for clause in join_clauses]):
-        return False, 'Do not know how to handle non-join clauses yet', 501
+        return False, 'Do not know how to handle non-join clauses yet', 501, None
 
-    app.logger.info("About to return true")
-    return True, auth, join_clauses
+    return True, auth, 200, join_clauses
 
 
 def construct_list_query(SELECT, FROM, join_clauses, WHERE=None):
@@ -95,11 +87,9 @@ def query_list(resource):
     method = request.method
     table = resource.strip()
 
-    success, msg, result = validate_authorization(method, path, table)
+    success, msg, code, join_clauses = validate_authorization(method, path, table)
     if not success:
-        return msg, result
-
-    join_clauses = result
+        return msg, code
 
     args = request.args
     if 'select' not in args.keys():
@@ -128,7 +118,7 @@ def query_id(resource, id):
     method = request.method
     table = resource.strip()
 
-    success, msg, result = validate_authorization(method, path, table)
+    success, msg, result, join_clause = validate_authorization(method, path, table)
     if not success:
         return msg, result
 
