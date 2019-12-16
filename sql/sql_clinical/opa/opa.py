@@ -113,6 +113,23 @@ def compile_http(query, input, unknowns):
     return body.get('result', {}).get('queries', [])
 
 
+def query_http(path, query, input):
+    """Returns result of a query."""
+    server = app.config['opa_server']
+    url = server + f'/v1/data/{path}/{query}'
+    response = requests.post(url,
+                             data=json.dumps({
+                                 'input': input,
+                             }))
+    body = response.json()
+    if response.status_code != 200:
+        raise Exception('%s: %s' % (body.code, body.message))
+    response = body.get('result', {})
+    if not response:
+        return None
+    return response
+
+
 def compile_command_line(data_files):
     """Returns a function that can be called to compile a query using OPA's eval subcommand."""
     def wrapped(query, input, unknowns):

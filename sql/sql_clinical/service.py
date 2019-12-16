@@ -9,6 +9,7 @@ from flask import Flask, request, jsonify
 from sqlalchemy.sql import text
 from .orm import init_db, get_session, tables
 from .opa.opa import compile as opa_compile
+from .opa.opa import query_http as opa_query
 
 TABLES = None
 SESSION = None
@@ -36,34 +37,58 @@ def _get_claims_tokens():
 
     return claims
 
-def _unique_dictionaries(list_of_dicts):
-    frozensets = [frozenset(d.items()) for d in list_of_dicts]
-    frozensets_set = set(frozensets)
-    return [dict(fs) for fs in frozensets]
+def check_tokens(method, path):
+    user = _get_id_token()
+    entitlements = _get_claims_tokens()
+    result = opa_query(path='filtering', query='valid_tokens',
+                         input={'method': method, 'path': path, 'user': user,
+                                'entitlements': entitlements})
+    return result
 
-def authorization(method, path, table):
+
+def list_authorization(method, path, table, **kwargs):
     user = _get_id_token()
     entitlements = _get_claims_tokens()
     result = opa_compile(q='data.filtering.allow==true',
                          input={'method': method, 'path': path, 'user': user,
-                                'entitlements': entitlements},
+                                'entitlements': entitlements, **kwargs},
                          unknowns=[table, 'consents'],
                          from_table=table)
     return result
 
-def validate_authorization(method, path, table):
+
+def item_authorization(method, path, table, **kwargs):
+    user = _get_id_token()
+    entitlements = _get_claims_tokens()
+    result = opa_query(path='filtering', query='allow', 
+                         input={'method': method, 'path': path, 'user': user,
+                                'entitlements': entitlements, **kwargs})
+    return result
+
+
+def validate_authorization(method, path, table, query_type='list', **kwargs):
     if not table in TABLES:
         return False, 'Not found', 404, None
     
-    auth = authorization(method, path, table)
-    if not auth.defined:
-        return False, 'Not authorized', 403, None
+    if not check_tokens(method, path):
+        return False, 'Unauthorized', 401, None
 
-    join_clauses = [clause.sql() for clause in auth.sql.clauses]
-    if not all([clause.startswith("INNER JOIN") for clause in join_clauses]):
-        return False, 'Do not know how to handle non-join clauses yet', 501, None
+    if query_type == 'list':
+        auth = list_authorization(method, path, table)
+        if not auth.defined:
+            return False, 'Not authorized', 403, None
 
-    return True, auth, 200, join_clauses
+        join_clauses = [clause.sql() for clause in auth.sql.clauses]
+        if not all([clause.startswith("INNER JOIN") for clause in join_clauses]):
+            return False, 'Do not know how to handle non-join clauses yet', 501, None
+
+        return True, auth, 200, join_clauses
+    else:
+        auth = item_authorization(method, path, table, **kwargs)
+        if not auth:
+            return False, 'Not authorized', 403, None
+
+        return True, auth, 200, None
 
 
 def construct_list_query(SELECT, FROM, join_clauses, WHERE=None):
@@ -87,7 +112,7 @@ def query_list(resource):
     method = request.method
     table = resource.strip()
 
-    success, msg, code, join_clauses = validate_authorization(method, path, table)
+    success, msg, code, join_clauses = validate_authorization(method, path, table, query_type='list')
     if not success:
         return msg, code
 
@@ -108,7 +133,6 @@ def query_list(resource):
     columns = SESSION.execute(list_query).keys()
     result = [ {key: value for (key, value) in zip(columns, r)} for r in rows ] 
 
-    result = _unique_dictionaries(result)
     return jsonify(result=result), 200
 
 
@@ -118,35 +142,27 @@ def query_id(resource, id):
     method = request.method
     table = resource.strip()
 
-    success, msg, result, join_clause = validate_authorization(method, path, table)
+    # first find the consents for this item
+    consents_query = text(f"SELECT consents.project FROM consents INNER JOIN {table} on {table}.id == consents.id WHERE {table}.id=\"{id}\"")
+    consents = SESSION.execute(consents_query).fetchall()
+    consents = list(set([consent[0] for consent in consents]))
+
+    success, msg, code, _ = validate_authorization(method, path, table, query_type='item', consents=consents)
     if not success:
-        return msg, result
+        return msg, code
 
-    join_clause = result
-
-    # first do unauthorized count query so we can find the 
-    # difference between a 404 (does not exist) and 
-    # a 401 (forbidden)
-    count_query = text(f"SELECT COUNT(id) FROM {table} where {table}.id=\"{id}\"")
-    rows = SESSION.execute(count_query).fetchall()
-    count = rows[0][0]
-    app.logger.info(rows[0])
+    # successfully authorized!  Look up and return the actual entry
+    item_query = text(f"SELECT {table}.* FROM {table} WHERE {table}.id=\"{id}\"")
+    item = SESSION.execute(item_query).fetchall()
+    item_columns = SESSION.execute(item_query).keys()
+    count = len(item)
+    app.logger.info(item)
     if count == 0:
         return 'Not found', 404
 
-    if count > 1:
-        return 'Multiple objects with id, invalid query', 401
-
-    query = text(f"SELECT {table}.* FROM {table} {join_clause} WHERE {table}.id=\"{id}\"")
-    rows = SESSION.execute(query).fetchall()
-    columns = SESSION.execute(query).keys()
-
-    count = len(rows)
-    if count == 0:
-        return 'Forbidden', 401
-
-    result = {key: value for (key, value) in zip(columns, rows[0])}
+    result = {key: value for (key, value) in zip(item_columns, item[0])}
     return jsonify(result=result), 200
+
 
 def main(args=None):
     """The main routine."""
