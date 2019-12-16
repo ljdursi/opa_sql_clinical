@@ -18,7 +18,7 @@ _BRAVADO_CONFIG = {
     'validate_requests': False,
     'validate_responses': False,
     'use_models': True,
-    'validate_swagger_spec': False
+    'validate_swagger_spec': True
 }
 
 _SWAGGER_SPEC = Spec.from_dict(_SPEC_DICT, config=_BRAVADO_CONFIG)
