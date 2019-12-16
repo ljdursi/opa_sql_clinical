@@ -147,6 +147,9 @@ def query_id(resource, id):
     consents = SESSION.execute(consents_query).fetchall()
     consents = list(set([consent[0] for consent in consents]))
 
+    if not consents:
+        return "Not found", 404
+
     success, msg, code, _ = validate_authorization(method, path, table, query_type='item', consents=consents)
     if not success:
         return msg, code
@@ -155,10 +158,7 @@ def query_id(resource, id):
     item_query = text(f"SELECT {table}.* FROM {table} WHERE {table}.id=\"{id}\"")
     item = SESSION.execute(item_query).fetchall()
     item_columns = SESSION.execute(item_query).keys()
-    count = len(item)
     app.logger.info(item)
-    if count == 0:
-        return 'Not found', 404
 
     result = {key: value for (key, value) in zip(item_columns, item[0])}
     return jsonify(result=result), 200
