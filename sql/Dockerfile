@@ -14,4 +14,4 @@ EXPOSE 3000
 # provide some explicit defaults if no arugments are given
 ENTRYPOINT [ "sql_clinical", "--port", "3000"]
 CMD [ "--logfile", "clinical_service.log",\
-      "--database", "/clinical_service.sqlite" ]
+      "--database", "/sql_clinical.sqlite" ]
