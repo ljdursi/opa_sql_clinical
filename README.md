@@ -10,6 +10,10 @@
 - Pytest, tox
 - Travis-CI
 
+## Motivation
+
+Slides are in [slides.pdf](slides.pdf)
+
 ## Running
 
 This can be run by starting
